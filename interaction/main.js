@@ -86,7 +86,7 @@ Car.prototype.distance = function (ent) {
 };
 
 Car.prototype.update = function () {
-    //running around four side Clockwise
+    //run around four side Clockwise
     if (this.x < 800 - 60
         && this.y <= 0) {
         this.y = 0;
@@ -142,6 +142,16 @@ Car.prototype.update = function () {
             this.speed = 0;
         }
     }
+	if (start_hit_break && saving){
+		for (var i = 0; i < this.game.entities.length; i++) {
+			var ent = this.game.entities[i];
+			arr.push(ent.x, ent.y, ent.direction);
+			// console.log(ent.x, ent.y, ent.direction);
+		}
+		saving = false;
+		socket.emit("save", { studentname: "Dongsheng Han", statename: "States X Y Direction", arr});
+		socket.emit("load", { studentname: "Dongsheng Han", statename: "States X Y Direction" });
+    }
 
     Entity.prototype.update.call(this);
 
@@ -178,6 +188,69 @@ Car.prototype.draw = function (ctx) {
     Entity.prototype.draw.call(this);
 }
 
+window.onload = function () {
+    console.log("starting up window.onload = function ()");
+    var messages = [];
+    var field = document.getElementById("field");
+    var username = document.getElementById("username");
+
+    socket.on("ping", function (ping) {
+        console.log("ping");
+        socket.emit(ping);
+    });
+
+    socket.on('sync', function (data) {
+		console.log("sync");
+        console.log(data.length +" messages synced.");
+        messages = data;
+        var html = '';
+        for (var i = 0; i < messages.length; i++) {
+            html += '<b>' + (messages[i].username ? messages[i].username : 'Server') + ': </b>';
+            html += messages[i].message + '<br />';
+        }
+        content.innerHTML = html;
+        content.scrollTop = content.scrollHeight;
+    });
+
+    socket.on('message', function (data) {
+		console.log("message");
+        if (data.message) {
+            messages.push(data);
+            // update html
+            var html = '';
+            for (var i = 0; i < messages.length; i++) {
+                html += '<b>' + (messages[i].username ? messages[i].username : 'Server') + ': </b>';
+                html += messages[i].message + '<br />';
+            }
+            content.innerHTML = html;
+            content.scrollTop = content.scrollHeight;
+        } else {
+            console.log("There is a problem:", data);
+        }
+    });
+
+	socket.on("load", function (data) {
+		console.log("load");
+		console.log(data);
+	});
+
+	socket.on("save", function (data) {
+		console.log("save");
+		console.log(data);
+	});
+
+    socket.on("connect", function () {
+        console.log("Socket connected.")
+    });
+    socket.on("disconnect", function () {
+        console.log("Socket disconnected.")
+    });
+    socket.on("reconnect", function () {
+        console.log("Socket reconnected.")
+    });
+
+};
+
 
 // the "main" code begins here
 var ASSET_MANAGER = new AssetManager();
@@ -185,6 +258,9 @@ ASSET_MANAGER.queueDownload("./img/car-clipart-game-maker-10.jpg");
 var init_speed = 10;
 var car_count = 25;
 var start_hit_break = false;
+var saving = true;
+var arr = [];
+var socket = io.connect("http://24.16.255.56:8888");
 ASSET_MANAGER.downloadAll(function () {
     console.log("starting up da sheild");
     var canvas = document.getElementById('gameWorld');
