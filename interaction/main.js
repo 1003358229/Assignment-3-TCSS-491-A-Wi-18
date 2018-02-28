@@ -260,7 +260,7 @@ var car_count = 25;
 var start_hit_break = false;
 var saving = true;
 var arr = [];
-var socket = io.connect("https://24.16.255.56:8888");
+var socket = io.connect("http://24.16.255.56:8888");
 ASSET_MANAGER.downloadAll(function () {
     console.log("starting up da sheild");
     var canvas = document.getElementById('gameWorld');
