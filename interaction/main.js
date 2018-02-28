@@ -1,3 +1,78 @@
+function GameBoard(game) {
+	this.game = game;
+}
+
+GameBoard.prototype = new Entity();
+GameBoard.prototype.constructor = GameBoard;
+
+GameBoard.prototype.update = function () {
+	if(start_hit_break && this.game.click){
+		// console.log(this.game.click.x, this.game.click.y);
+		if (this.game.click.x > 300 && this.game.click.x < 360
+				&& this.game.click.y > 480 && this.game.click.y < 500){
+			save = true;
+		}
+		if (this.game.click.x > 400 && this.game.click.x < 460
+				&& this.game.click.y > 480 && this.game.click.y < 500){
+			load = true;
+		}
+	}
+	if (start_hit_break && save){
+		save_data = [];
+		for (var i = 1; i < this.game.entities.length; i++) {
+			var ent = this.game.entities[i];
+			save_data.push(ent.x, ent.y, ent.direction);
+			// console.log(ent.x, ent.y, ent.direction);
+		}
+		socket.emit("save", { studentname: "Dongsheng Han", statename: "States X Y Direction", save_data});
+		save = false;
+    }
+	
+	if(start_hit_break && load){
+		if(load_data.length == 0){
+			socket.emit("load", { studentname: "Dongsheng Han", statename: "States X Y Direction"});
+		} else {
+			var index = 0
+			for (var i = 1; i < this.game.entities.length; i++) {
+				var ent = this.game.entities[i];
+				ent.x = load_data[index];
+				index ++;
+				ent.y = load_data[index];
+				index ++;
+				ent.direction = load_data[index];
+				index ++;
+				// console.log(ent.x, ent.y, ent.direction);
+			}
+			load_data = [];
+			load = false;
+		}
+	}
+    Entity.prototype.update.call(this);
+}
+
+GameBoard.prototype.draw = function (ctx) {
+    if (start_hit_break) {
+		ctx.strokeStyle = "black";
+		ctx.fillStyle = 'white';
+		ctx.font = "30px Sans-serif";
+		ctx.strokeText("save", 300, 500);
+		ctx.fillText("save", 300, 500);
+		ctx.strokeText("load", 400, 500);
+		ctx.fillText("load", 400, 500);
+		ctx.beginPath();
+		ctx.lineWidth="1";
+		ctx.strokeStyle="red";
+		ctx.rect(298,475,68,30);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.lineWidth="1";
+		ctx.strokeStyle="red";
+		ctx.rect(398,475,68,30);
+		ctx.stroke();
+    }
+    Entity.prototype.draw.call(this);
+}
+
 //random number start at 1 until max(included)
 function getRndInteger(max) {
     return Math.floor(Math.random() * (max)) + 1;
@@ -109,9 +184,8 @@ Car.prototype.update = function () {
         this.y -= this.speed;
     }
 
-
     var entity_index;
-    for (var i = 0; i < this.game.entities.length; i++) {
+    for (var i = 1; i < this.game.entities.length; i++) {
         var ent = this.game.entities[i];
         if (this == ent) {
             entity_index = i;
@@ -120,9 +194,9 @@ Car.prototype.update = function () {
     }
 
     var previous_entity_index;
-    if (entity_index == 0) {
+    if (entity_index == 1) {
         previous_entity_index = this.game.entities.length - 1;
-    } else {
+    } else if(entity_index != 0){
         previous_entity_index = entity_index - 1;
     }
 
@@ -134,7 +208,7 @@ Car.prototype.update = function () {
     if (this.distance(this.game.entities[previous_entity_index]) < this.size * 0.8) {
         this.speed = 0;
     }
-    if (this.game.entities.length == 1) {
+    if (this.game.entities.length == 2) {
         this.speed = init_speed;
     }
     if (start_hit_break){
@@ -142,19 +216,7 @@ Car.prototype.update = function () {
             this.speed = 0;
         }
     }
-	if (start_hit_break && saving){
-		for (var i = 0; i < this.game.entities.length; i++) {
-			var ent = this.game.entities[i];
-			arr.push(ent.x, ent.y, ent.direction);
-			// console.log(ent.x, ent.y, ent.direction);
-		}
-		saving = false;
-		socket.emit("save", { studentname: "Dongsheng Han", statename: "States X Y Direction", arr});
-		socket.emit("load", { studentname: "Dongsheng Han", statename: "States X Y Direction" });
-    }
-
     Entity.prototype.update.call(this);
-
 }
 
 Car.prototype.draw = function (ctx) {
@@ -178,6 +240,7 @@ Car.prototype.draw = function (ctx) {
         ctx.font = "40px Sans-serif";
         ctx.strokeText("Start hit breaks", 250, 400);
         ctx.fillText("Start hit breaks", 250, 400);
+
     } else {
         ctx.strokeStyle = "black";
         ctx.fillStyle = 'white';
@@ -185,6 +248,7 @@ Car.prototype.draw = function (ctx) {
         ctx.strokeText("Not hit breaks", 250, 400);
         ctx.fillText("Not hit breaks", 250, 400);
     }
+	
     Entity.prototype.draw.call(this);
 }
 
@@ -232,6 +296,7 @@ window.onload = function () {
 	socket.on("load", function (data) {
 		console.log("load");
 		console.log(data);
+		load_data = data.save_data;
 	});
 
 	socket.on("save", function (data) {
@@ -258,16 +323,23 @@ ASSET_MANAGER.queueDownload("./img/car-clipart-game-maker-10.jpg");
 var init_speed = 10;
 var car_count = 25;
 var start_hit_break = false;
-var saving = true;
-var arr = [];
+var save = false;
+var load = false;
+var save_data = [];
+var load_data = [];
 var socket = io.connect("http://24.16.255.56:8888");
+var gameEngine = new GameEngine();
 ASSET_MANAGER.downloadAll(function () {
     console.log("starting up da sheild");
     var canvas = document.getElementById('gameWorld');
     var ctx = canvas.getContext('2d');
     var gameEngine = new GameEngine();
     gameEngine.init(ctx);
-
+	
+	var gameboard = new GameBoard(gameEngine,3);
+    console.log("GAME ENGINE " + gameEngine);
+    console.log(gameboard);
+    gameEngine.addEntity(gameboard);
 
     var Cars = new Car(gameEngine);
     gameEngine.addEntity(Cars);
@@ -283,7 +355,8 @@ ASSET_MANAGER.downloadAll(function () {
         if (timesRun === car_count) {
             clearInterval(interval);
         }
-    }, 100 / init_speed * 20); 
+    }, 100 / init_speed * 13); 
+	// }, 100 / init_speed * 20); 
 
     var start = 0
     var interval2 = setInterval(function () {
@@ -292,6 +365,7 @@ ASSET_MANAGER.downloadAll(function () {
             clearInterval(interval2);
             start_hit_break = true;
         }
-    }, 5000); 
+    }, 2000); 
+	// }, 5000); 
 
 });
